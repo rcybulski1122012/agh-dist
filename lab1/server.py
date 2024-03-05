@@ -1,11 +1,11 @@
+import select
 import socket
 import threading
-import select
 from collections import deque
 from dataclasses import dataclass
 
-from common import SERVER_ADDRESS, SERVER_PORT, CHUNK_SIZE, MESSAGE_END_SEQUENCE, Message, MessageType, \
-    Address, send_message
+from common import (CHUNK_SIZE, MESSAGE_END_SEQUENCE, SERVER_ADDRESS,
+                    SERVER_PORT, Address, Message, MessageType, send_message)
 
 
 @dataclass
@@ -23,7 +23,7 @@ udp_info_by_address: dict[Address, ConnectionInfo] = {}
 def main() -> None:
     with (
         socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket,
-        socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket
+        socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket,
     ):
         tcp_socket.bind((SERVER_ADDRESS, SERVER_PORT))
         udp_socket.bind((SERVER_ADDRESS, SERVER_PORT))
@@ -34,10 +34,14 @@ def main() -> None:
         while True:
             tcp_conn, addr = tcp_socket.accept()
             print(f"Connected by {addr}")
-            threading.Thread(target=handle_connection, args=(tcp_conn, udp_socket, addr)).start()
+            threading.Thread(
+                target=handle_connection, args=(tcp_conn, udp_socket, addr)
+            ).start()
 
 
-def handle_connection(tcp_conn: socket.socket, udp_conn: socket.socket, addr: Address) -> None:
+def handle_connection(
+    tcp_conn: socket.socket, udp_conn: socket.socket, addr: Address
+) -> None:
     buffer = b""
     while True:
         if tcp_conn.fileno() == -1:
@@ -62,12 +66,14 @@ def handle_connection(tcp_conn: socket.socket, udp_conn: socket.socket, addr: Ad
             udp_conn.sendto(udp_message, connection_info.udp_addr)
 
 
-def handle_tcp_connection(tcp_conn: socket.socket, addr: Address, buffer: bytes) -> bytes:
+def handle_tcp_connection(
+    tcp_conn: socket.socket, addr: Address, buffer: bytes
+) -> bytes:
     while MESSAGE_END_SEQUENCE not in buffer:
         buffer += tcp_conn.recv(CHUNK_SIZE)
 
-    message = buffer[:buffer.index(MESSAGE_END_SEQUENCE)]
-    buffer = buffer[buffer.index(MESSAGE_END_SEQUENCE) + len(MESSAGE_END_SEQUENCE):]
+    message = buffer[: buffer.index(MESSAGE_END_SEQUENCE)]
+    buffer = buffer[buffer.index(MESSAGE_END_SEQUENCE) + len(MESSAGE_END_SEQUENCE) :]
     message = Message.deserialize(message)
     response = handle_user_message(message, addr)
     if response is not None:
@@ -102,7 +108,7 @@ def handle_CONNECT(message: Message, addr: Address) -> Message:
         return Message(
             message_type=MessageType.ERROR,
             user_name=message.user_name,
-            message="User already connected"
+            message="User already connected",
         )
 
     print(f"User {message.user_name} connected")
@@ -111,14 +117,11 @@ def handle_CONNECT(message: Message, addr: Address) -> Message:
         messages_to_send=deque(),
         udp_buffer=deque(),
         user_name=message.user_name,
-        udp_addr=udp_addr
+        udp_addr=udp_addr,
     )
-    udp_info_by_address[udp_addr] = tcp_info_by_address[addr]
+    udp_info_by_address[udp_addrw] = tcp_info_by_address[addr]
 
-    return Message(
-        message_type=MessageType.CONNECT,
-        user_name=message.user_name
-    )
+    return Message(message_type=MessageType.CONNECT, user_name=message.user_name)
 
 
 def user_with_such_name_exists(user_name: str) -> bool:
@@ -132,12 +135,14 @@ def handle_MESSAGE(message: Message, addr: Address) -> Message | None:
         return Message(
             message_type=MessageType.ERROR,
             user_name=message.user_name,
-            message="Invalid user name!"
+            message="Invalid user name!",
         )
 
     print(f"User {user_name} sent message: {message.message}")
 
-    queues = [info.messages_to_send for a, info in tcp_info_by_address.items() if addr != a]
+    queues = [
+        info.messages_to_send for a, info in tcp_info_by_address.items() if addr != a
+    ]
 
     for q in queues:
         q.append(message)

@@ -26,10 +26,10 @@ class Serializable:
         return json.dumps(self.__dict__).encode(encoding=ENCODING)
 
     @classmethod
-    def deserialize(cls, serialized:  bytes) -> Self:
+    def deserialize(cls, serialized: bytes) -> Self:
         decoded = serialized.decode(encoding=ENCODING)
         try:
-            return cls(**json.loads(decoded))    # type: ignore
+            return cls(**json.loads(decoded))  # type: ignore
         except Exception as e:
             print(f"Error deserializing {decoded}")
             raise e
