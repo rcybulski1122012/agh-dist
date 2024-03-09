@@ -1,14 +1,12 @@
 import select
 import socket
 import sys
-import threading
 from uuid import uuid4
 
 from common import (CHUNK_SIZE, MESSAGE_END_SEQUENCE, SERVER_ADDRESS,
                     SERVER_PORT, Message, MessageType, send_message)
 
 buffer: bytes = b""
-exit_event = threading.Event()
 EXIT_MESSAGE: str = "exit"
 UDP_TRANSMISSION_MESSAGE: str = "U"
 UDP_DATA = '''
@@ -71,7 +69,6 @@ d888888888888888,                                ,ZZZZZZZZZZZZZZZZZZZZZZZZZZZ
 
 
 def main() -> None:
-    global buffer
     user_name = input("Enter your user name: ") or str(uuid4())
     with (
         socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_socket,
@@ -114,12 +111,10 @@ def connect_with_server(
 
 
 def disconnect_from_server(conn: socket.socket) -> None:
-    global buffer
     print("Disconnected from server")
     message = Message(message_type=MessageType.DISCONNECT)
 
     send_message(conn, message)
-    exit_event.set()
     exit(0)
 
 
@@ -129,7 +124,6 @@ def handle_user_input(
     message = sys.stdin.readline().strip()
     if message == EXIT_MESSAGE:
         disconnect_from_server(tcp_conn)
-        exit_event.set()
         return
     elif message == UDP_TRANSMISSION_MESSAGE:
         send_udp_message(udp_conn, UDP_DATA)
@@ -161,9 +155,7 @@ def handle_tcp_received_messages(conn: socket.socket) -> None:
         ]
         decoded_message = Message.deserialize(message)
         if decoded_message.message_type == MessageType.MESSAGE:
-            print(
-                f"{decoded_message.user_name} sent message: {decoded_message.message}"
-            )
+            print(f"{decoded_message.user_name}: {decoded_message.message}")
         elif decoded_message.message_type == MessageType.ERROR:
             print(f"Error: {decoded_message.message}")
             disconnect_from_server(conn)

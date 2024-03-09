@@ -31,6 +31,7 @@ def main() -> None:
         threading.Thread(target=handle_udp_connection, args=(udp_socket,)).start()
 
         tcp_socket.listen()
+        print("Server is listening...")
         while True:
             tcp_conn, addr = tcp_socket.accept()
             print(f"Connected by {addr}")
@@ -56,12 +57,10 @@ def handle_connection(
         messages_queue = getattr(connection_info, "messages_to_send", None)
         udp_queue = getattr(connection_info, "udp_buffer", None)
         while messages_queue:
-            print("sending message")
             message = messages_queue.popleft()
             send_message(tcp_conn, message)
 
         while udp_queue:
-            print("sending udp message")
             udp_message = udp_queue.popleft()
             udp_conn.sendto(udp_message, connection_info.udp_addr)
 
@@ -85,7 +84,8 @@ def handle_tcp_connection(
 def handle_udp_connection(udp_conn: socket.socket) -> None:
     while True:
         data, addr = udp_conn.recvfrom(CHUNK_SIZE)
-        print(f"Received UDP message from {addr}")
+        name = udp_info_by_address[addr].user_name
+        print(f"User {name} sent UDP message: {data[:15]}...")
         for a, info in udp_info_by_address.items():
             if a != addr:
                 info.udp_buffer.append(data)
@@ -119,7 +119,7 @@ def handle_CONNECT(message: Message, addr: Address) -> Message:
         user_name=message.user_name,
         udp_addr=udp_addr,
     )
-    udp_info_by_address[udp_addrw] = tcp_info_by_address[addr]
+    udp_info_by_address[udp_addr] = tcp_info_by_address[addr]
 
     return Message(message_type=MessageType.CONNECT, user_name=message.user_name)
 
