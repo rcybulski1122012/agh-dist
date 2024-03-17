@@ -6,8 +6,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from logging import getLogger
 
-from dependencies import validate_ingredients
-from services import fetch_recipes, translate_ingredients, translate_recipes, divide_recipes
+from dependencies import validate_ingredients, validate_api_key
+from services import fetch_recipes, translate_ingredients, translate_recipes, divide_recipes, BAD_REQUEST
 
 logger = getLogger(__name__)
 app = FastAPI()
@@ -22,13 +22,13 @@ async def main(request: Request) -> HTMLResponse:
 @app.get("/recipes/")
 async def get_recipes(
     request: Request,
-    ingredients: Annotated[list[str], Depends(validate_ingredients)]
+    ingredients: Annotated[list[str], Depends(validate_ingredients)],
+    _api_key: Annotated[str, Depends(validate_api_key)],
 ) -> HTMLResponse:
     translated_ingredients = await translate_ingredients(ingredients)
     try:
         recipes = await fetch_recipes(translated_ingredients)
     except ValidationError as e:
-        print("validation error")
         logger.info(f"Validation error caused by external service response: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
