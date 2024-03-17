@@ -1,0 +1,138 @@
+{
+	"info": {
+		"_postman_id": "fe72abde-9ee0-4eb4-9120-4ed067117a89",
+		"name": "Recipes",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15914625"
+	},
+	"item": [
+		{
+			"name": "Get recipes",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/recipes?api_key=123&ingredients=jabłko, miód, mleko",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"recipes"
+					],
+					"query": [
+						{
+							"key": "api_key",
+							"value": "123"
+						},
+						{
+							"key": "ingredients",
+							"value": "jabłko, miód, mleko"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Wrong API KEY",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/recipes?api_key=wrong-api-key&ingredients=jabłko, miód, mleko",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"recipes"
+					],
+					"query": [
+						{
+							"key": "api_key",
+							"value": "wrong-api-key"
+						},
+						{
+							"key": "ingredients",
+							"value": "jabłko, miód, mleko"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Invalid/Empty Input Format",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/recipes?api_key=123&ingredients=,,,,,,,",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"recipes"
+					],
+					"query": [
+						{
+							"key": "api_key",
+							"value": "123"
+						},
+						{
+							"key": "ingredients",
+							"value": ",,,,,,,"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Gibberish Instead of Ingredients",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/recipes?api_key=123&ingredients=,,,,,,,",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"recipes"
+					],
+					"query": [
+						{
+							"key": "api_key",
+							"value": "123"
+						},
+						{
+							"key": "ingredients",
+							"value": ",,,,,,,"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
