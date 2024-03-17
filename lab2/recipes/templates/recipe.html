@@ -1,0 +1,26 @@
+<div class="mt-4 p-4 bg-white rounded-lg shadow-md">
+    <h3 class="text-xl font-semibold text-gray-700">{{ recipe.title }}</h3>
+    <img class="w-full h-64 object-cover mt-2 rounded" src="{{ recipe.image }}" alt="{{ recipe.title }}">
+
+    <div class="mt-4">
+        <h4 class="font-semibold text-gray-700">Użyte składniki</h4>
+        <ul>
+            {% for ingredient in recipe.used_ingredients %}
+            <li class="text-gray-700">{{ ingredient }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="mt-4">
+        <h4 class="font-semibold text-gray-700">Brakujące składniki</h4>
+        <ul>
+            {% for ingredient in recipe.missed_ingredients %}
+            <li class="text-gray-700">{{ ingredient }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="mt-4 text-gray-700">
+        <p>{{ recipe.summary|safe }}</p>
+    </div>
+</div>

@@ -1,10 +1,15 @@
 from typing import Annotated
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Request, status, HTTPException, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from services import fetch_recipes, translate_ingredients, translate_recipes
+from pydantic import ValidationError
+from logging import getLogger
 
+from dependencies import validate_ingredients
+from services import fetch_recipes, translate_ingredients, translate_recipes, divide_recipes
+
+logger = getLogger(__name__)
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
@@ -14,15 +19,34 @@ async def main(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request=request, name="form.html")
 
 
-@app.post("/recipes/")
+@app.get("/recipes/")
 async def get_recipes(
-    request: Request, ingredients: Annotated[str, Form(...)]
+    request: Request,
+    ingredients: Annotated[list[str], Depends(validate_ingredients)]
 ) -> HTMLResponse:
-    ingredients = [s.strip() for s in ingredients.strip().split(",")]
     translated_ingredients = await translate_ingredients(ingredients)
-    recipes = await fetch_recipes(translated_ingredients)
+    try:
+        recipes = await fetch_recipes(translated_ingredients)
+    except ValidationError as e:
+        print("validation error")
+        logger.info(f"Validation error caused by external service response: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="External service is unavailable",
+        )
     await translate_recipes(recipes)
+    recipe_info = divide_recipes(recipes)
 
     return templates.TemplateResponse(
-        request=request, name="result.html", context={"recipes": recipes}
+        request=request, name="result.html", context={"recipes_info": recipe_info}
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="error.html",
+        context={"status_code": exc.status_code, "detail": exc.detail},
+        status_code=exc.status_code
     )

@@ -3,8 +3,25 @@ import asyncio
 import httpx
 from fastapi import status
 from fastapi.exceptions import HTTPException
-from schemas import Recipe
+from schemas import Recipe, RecipeInfo
 from settings import settings
+from logging import getLogger
+
+from utils import is_user_error
+
+NUMBER_OF_RECIPES_PER_QUERY = 7
+
+logger = getLogger(__name__)
+
+
+SERVICE_UNAVAILABLE = HTTPException(
+    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    detail="External service is unavailable",
+)
+BAD_REQUEST = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="No recipes found",
+)
 
 
 async def translate_ingredients(ingredients: list[str]) -> list[str]:
@@ -63,10 +80,10 @@ async def translate_texts(text: list[str], target_language: str) -> list[str]:
         )
 
     if response.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="External service is unavailable",
-        )
+        logger.info(f"Failed to translate texts: {text}")
+        if is_user_error(response.status_code):
+            raise BAD_REQUEST
+        raise SERVICE_UNAVAILABLE
 
     return [t["text"] for t in response.json()["translations"]]
 
@@ -75,7 +92,7 @@ async def fetch_recipes(ingredients_en: list[str]) -> list[Recipe]:
     merged_ingredients = ",".join(ingredients_en)
     base_url = (
         f"{settings.FOOD_API_URL}/recipes/findByIngredients?"
-        f"number=3&ignorePantry=true&ingredients={merged_ingredients}&"
+        f"number={NUMBER_OF_RECIPES_PER_QUERY}&ignorePantry=true&ingredients={merged_ingredients}&"
         f"apiKey={settings.FOOD_API_KEY}"
     )
     min_missing_url = f"{base_url}&ranking=1"
@@ -88,33 +105,58 @@ async def fetch_recipes(ingredients_en: list[str]) -> list[Recipe]:
         )
 
         if min_missing_result.status_code != 200 or max_used_result.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="External service is unavailable",
+            logger.info(
+                f"Failed to fetch recipes for ingredients: {ingredients_en}, "
+                f"{min_missing_result.status_code=}, {max_used_result.status_code=}"
             )
+
+            if is_user_error(min_missing_result.status_code) or is_user_error(max_used_result.status_code):
+                raise BAD_REQUEST
+
+            raise SERVICE_UNAVAILABLE
 
     recipes = [*min_missing_result.json(), *max_used_result.json()]
     recipes_by_ids = {recipe["id"]: recipe for recipe in recipes}
+    recipes_ids = recipes_by_ids.keys()
 
-    async with httpx.AsyncClient() as client:
-        recipes_summaries = await asyncio.gather(
-            *(
-                client.get(
-                    f"{settings.FOOD_API_URL}/recipes/{recipe_id}/summary?apiKey={settings.FOOD_API_KEY}"
-                )
-                for recipe_id in recipes_by_ids.keys()
-            )
+    async with (httpx.AsyncClient() as client):
+        recipes_info = await client.get(
+            f"{settings.FOOD_API_URL}/recipes/informationBulk"
+            f"?apiKey={settings.FOOD_API_KEY}&includeNutrition=true&ids={','.join([str(r) for r in recipes_ids])}"
         )
 
-        if any(response.status_code != 200 for response in recipes_summaries):
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="External service is unavailable",
-            )
+        if recipes_info.status_code != 200:
+            logger.info(f"Failed to fetch recipes info or summaries")
+            if is_user_error(recipes_info.status_code):
+                raise BAD_REQUEST
+            raise SERVICE_UNAVAILABLE
 
-    for summary_response in recipes_summaries:
-        summary = summary_response.json()
-        recipe = recipes_by_ids[summary["id"]]
-        recipe["summary"] = summary["summary"]
+    for recipe_info in recipes_info.json():
+        recipe = recipes_by_ids[recipe_info["id"]]
+        recipe.update(recipe_info)
 
     return [Recipe.from_api_response(recipe) for recipe in recipes_by_ids.values()]
+
+
+def divide_recipes(recipes: list[Recipe]) -> RecipeInfo:
+    min_missing = min(recipes, key=lambda r: len(r.missed_ingredients))
+    max_used = max(recipes, key=lambda r: len(r.used_ingredients))
+    lowest_calories = min(recipes, key=lambda r: r.calories)
+    fastest_to_prepare = min(recipes, key=lambda r: r.ready_in_minutes)
+    cheapest = min(recipes, key=lambda r: r.price)
+    healthiest = max(recipes, key=lambda r: r.health_score)
+
+    return RecipeInfo(
+        min_missing=min_missing,
+        max_used=max_used,
+        lowest_calories=lowest_calories,
+        fastest_to_prepare=fastest_to_prepare,
+        cheapest=cheapest,
+        healthiest=healthiest,
+        rest=[
+            r for r in recipes
+            if r not in (
+                min_missing, max_used, lowest_calories, fastest_to_prepare, cheapest, healthiest
+            )
+        ]
+    )
