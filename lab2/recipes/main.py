@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from logging import getLogger
 
 from dependencies import validate_ingredients, validate_api_key
+from schemas import RecipeInfo
 from services import fetch_recipes, translate_ingredients, translate_recipes, divide_recipes, BAD_REQUEST
 
 logger = getLogger(__name__)
@@ -24,7 +25,7 @@ async def get_recipes(
     request: Request,
     ingredients: Annotated[list[str], Depends(validate_ingredients)],
     _api_key: Annotated[str, Depends(validate_api_key)],
-) -> HTMLResponse:
+) -> RecipeInfo:
     translated_ingredients = await translate_ingredients(ingredients)
     try:
         recipes = await fetch_recipes(translated_ingredients)
@@ -37,16 +38,4 @@ async def get_recipes(
     await translate_recipes(recipes)
     recipe_info = divide_recipes(recipes)
 
-    return templates.TemplateResponse(
-        request=request, name="result.html", context={"recipes_info": recipe_info}
-    )
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request=request,
-        name="error.html",
-        context={"status_code": exc.status_code, "detail": exc.detail},
-        status_code=exc.status_code
-    )
+    return recipe_info
