@@ -48,9 +48,16 @@ async function main(args) {
                     console.log(" - " + deviceName);
                 }
             }
+            else if (command === "test_bulbs") {
+                await testBulbs(devices);
+            }
+            else if (command === "test_robots") {
+                await testCleaningRobots(devices);
+            }
             else if (command !== "") {
                 await handleCommand(command, devices);
             }
+
 
             rl.prompt();
         });
@@ -105,5 +112,46 @@ async function handleCommand(command, proxies) {
             console.log("Invalid device name or it's unavailable");
     }
 }
+
+async function testBulbs(proxies) {
+    await handleCommand("KitchenLampBulb:isTurnedOn", proxies);
+    await handleCommand("KitchenLampBulb:turnOn", proxies);
+    await handleCommand("BathroomLampBulb:turnOff", proxies);
+
+    await handleCommand("BedRoomLampBulb:getBrightness", proxies);
+    await handleCommand("BedRoomLampBulb:setBrightness:100", proxies);
+    await handleCommand("BedRoomLampBulb:setBrightness:150", proxies);
+    await handleCommand("BedRoomLampBulb:setBrightness:-50", proxies);
+
+    await handleCommand("LivingRoomLampBulb:getColor", proxies);
+    await handleCommand("LivingRoomLampBulb:setColor:255:0:0", proxies);
+    await handleCommand("LivingRoomLampBulb:getColor", proxies);
+    await handleCommand("LivingRoomLampBulb:setColor:256:0:0", proxies);
+}
+
+async function testCleaningRobots(proxies) {
+    await handleCommand("GarageCleaningRobot:isCleaning", proxies);
+    await handleCommand("GarageCleaningRobot:startCleaningAllRooms", proxies);
+    await handleCommand("GarageCleaningRobot:turnOn", proxies);
+    await handleCommand("GarageCleaningRobot:startCleaningAllRooms", proxies);
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await handleCommand("GarageCleaningRobot:isCleaning", proxies);
+    await handleCommand("GarageCleaningRobot:startCleaningAllRooms", proxies);
+    await handleCommand("GarageCleaningRobot:stopCleaning", proxies);
+    console.log("-----------------------")
+    await handleCommand("MainCleaningRobot:isCleaning", proxies);
+    await handleCommand("MainCleaningRobot:turnOn", proxies);
+    await handleCommand("MainCleaningRobot:getRooms", proxies);
+    await handleCommand("MainCleaningRobot:getCleaningSchedules", proxies);
+    await handleCommand("MainCleaningRobot:addCleaningSchedule:1:2024:10:10:10:10", proxies);
+    await handleCommand("MainCleaningRobot:addCleaningSchedule:1:2022:10:10:10:10", proxies);
+    await handleCommand("MainCleaningRobot:getCleaningSchedules", proxies);
+    await handleCommand("MainCleaningRobot:removeCleaningSchedule:1", proxies);
+    await handleCommand("MainCleaningRobot:startCleaningRoom:1", proxies);
+
+
+
+}
+
 
 main(process.argv);
