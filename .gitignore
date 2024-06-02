@@ -163,3 +163,4 @@ cython_debug/
 
 out/
 node_modules/
+lab7/apache-zookeeper-3.8.4-bin
